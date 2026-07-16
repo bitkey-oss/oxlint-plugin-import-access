@@ -15,6 +15,7 @@ import {
 import { API, type Project, type Symbol } from "typescript/unstable/sync";
 
 import { checkSymbolImportability } from "../core/checkSymbolImportability.js";
+import createTSProjectMap from "../utils/createTSProjectMap.js";
 import type { PackageOptions } from "../utils/isInPackage.js";
 import { listTSConfigFiles } from "../utils/listTSConfigFiles.js";
 
@@ -120,53 +121,40 @@ export default defineRule({
     ],
   },
   createOnce(context) {
+    const tsconfigs = listTSConfigFiles(process.cwd());
     const snapshot = api.updateSnapshot({
-      openProjects: listTSConfigFiles(process.cwd()),
+      openProjects: tsconfigs,
     });
 
+    const projectMap = createTSProjectMap(snapshot, tsconfigs);
+
     let project: Project | undefined;
+    let sourceFile: SourceFile | undefined;
     let packageOptions: PackageOptions | undefined;
 
     return {
       before() {
-        if (!(project = snapshot.getDefaultProjectForFile(context.filename))) {
+        sourceFile = undefined;
+        packageOptions = undefined;
+
+        if (!(project = projectMap.getProjectForFile(context.filename))) {
           return;
         }
 
-        const {
-          indexLoophole,
-          filenameLoophole,
-          defaultImportability,
-          treatSelfReferenceAs,
-          excludeSourcePatterns,
-          packageDirectory,
-        } = jsDocRuleDefaultOptions(context.options[0] as JSDocRuleOptions);
+        // Cache sourceFile once per file to avoid repeated getSourceFile calls in handlers.
+        if (!(sourceFile = project.program.getSourceFile(context.filename))) {
+          project = undefined;
+          return;
+        }
 
         packageOptions = {
-          indexLoophole,
-          filenameLoophole,
-          defaultImportability,
-          treatSelfReferenceAs,
-          excludeSourcePatterns,
-          packageDirectory,
+          ...jsDocRuleDefaultOptions(context.options[0] as JSDocRuleOptions),
           projectDirectory: path.dirname(project.configFileName),
         };
       },
       ImportSpecifier(node) {
-        if (!project || !packageOptions) {
+        if (!project || !packageOptions || !sourceFile) {
           return;
-        }
-
-        const sourceFilename = context.filename;
-        if (!sourceFilename) {
-          return;
-        }
-
-        const checker = project.checker;
-
-        const sourceFile = project.program.getSourceFile(sourceFilename);
-        if (!sourceFile) {
-          throw new Error(`Could not find source file for ${sourceFilename}`);
         }
 
         const tsNode = findTSNode<ImportSpecifier>(sourceFile, node, SyntaxKind.ImportSpecifier);
@@ -174,34 +162,19 @@ export default defineRule({
           return;
         }
 
-        const symbol = checker.getSymbolAtLocation(tsNode.name);
+        const moduleSpecifier = (tsNode.parent.parent.parent as ImportDeclaration).moduleSpecifier;
+        if (!isStringLiteral(moduleSpecifier)) {
+          return;
+        }
+
+        const symbol = project.checker.getSymbolAtLocation(tsNode.name);
         if (symbol) {
-          const moduleSpecifier = (tsNode.parent.parent.parent as ImportDeclaration)
-            .moduleSpecifier;
-
-          if (!isStringLiteral(moduleSpecifier)) {
-            // Should not happen (as of TS 5.1)
-            return;
-          }
-
           checkSymbol(context, packageOptions, project, node, tsNode, moduleSpecifier.text, symbol);
         }
       },
       ImportDefaultSpecifier(node) {
-        if (!project || !packageOptions) {
+        if (!project || !packageOptions || !sourceFile) {
           return;
-        }
-
-        const sourceFilename = context.filename;
-        if (!sourceFilename) {
-          return;
-        }
-
-        const checker = project.checker;
-
-        const sourceFile = project.program.getSourceFile(sourceFilename);
-        if (!sourceFile) {
-          throw new Error(`Could not find source file for ${sourceFilename}`);
         }
 
         const tsNode = findTSNode<ImportClause>(sourceFile, node, SyntaxKind.ImportClause);
@@ -209,41 +182,19 @@ export default defineRule({
           return;
         }
 
-        const symbol = checker.getSymbolAtLocation(tsNode.name);
+        const moduleSpecifier = (tsNode.parent as ImportDeclaration).moduleSpecifier;
+        if (!isStringLiteral(moduleSpecifier)) {
+          return;
+        }
+
+        const symbol = project.checker.getSymbolAtLocation(tsNode.name);
         if (symbol) {
-          const moduleSpecifier = (tsNode.parent as ImportDeclaration).moduleSpecifier;
-
-          if (!isStringLiteral(moduleSpecifier)) {
-            // Should not happen (as of TS 5.1)
-            return;
-          }
-
-          checkSymbol(
-            context,
-            packageOptions!,
-            project,
-            node,
-            tsNode,
-            moduleSpecifier.text,
-            symbol,
-          );
+          checkSymbol(context, packageOptions, project, node, tsNode, moduleSpecifier.text, symbol);
         }
       },
       ExportSpecifier(node) {
-        if (!project || !packageOptions) {
+        if (!project || !packageOptions || !sourceFile) {
           return;
-        }
-
-        const sourceFilename = context.filename;
-        if (!sourceFilename) {
-          return;
-        }
-
-        const checker = project.checker;
-
-        const sourceFile = project.program.getSourceFile(sourceFilename);
-        if (!sourceFile) {
-          throw new Error(`Could not find source file for ${sourceFilename}`);
         }
 
         const tsNode = findTSNode<ExportSpecifier>(sourceFile, node, SyntaxKind.ExportSpecifier);
@@ -251,16 +202,16 @@ export default defineRule({
           return;
         }
 
-        const symbol = checker.getSymbolAtLocation(tsNode.name);
-        if (symbol) {
-          const moduleSpecifier = (tsNode.parent.parent as ExportDeclaration).moduleSpecifier;
-          if (!moduleSpecifier || !isStringLiteral(moduleSpecifier)) {
-            return;
-          }
+        const moduleSpecifier = (tsNode.parent.parent as ExportDeclaration).moduleSpecifier;
+        if (!moduleSpecifier || !isStringLiteral(moduleSpecifier)) {
+          return;
+        }
 
+        const symbol = project.checker.getSymbolAtLocation(tsNode.name);
+        if (symbol) {
           checkSymbol(
             context,
-            packageOptions!,
+            packageOptions,
             project,
             node,
             tsNode,
