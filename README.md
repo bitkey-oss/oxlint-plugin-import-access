@@ -21,7 +21,7 @@ npm add -D oxlint-plugin-import-access
 export default defineConfig({
   jsPlugins: ["oxlint-plugin-import-access"],
   rules: {
-    "import-access/access": "error",
+    "import-access/jsdoc": "error",
   },
 });
 ```
