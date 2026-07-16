@@ -1,17 +1,7 @@
 import path from "node:path";
 
-import { type Context, type Node as OxlintNode, defineRule } from "@oxlint/plugins";
-import {
-  type ExportDeclaration,
-  type ExportSpecifier,
-  type ImportClause,
-  type ImportDeclaration,
-  type ImportSpecifier,
-  type Node,
-  type SourceFile,
-  SyntaxKind,
-  isStringLiteral,
-} from "typescript/unstable/ast";
+import { type Context, type ESTree, type Node as OxlintNode, defineRule } from "@oxlint/plugins";
+import { type SourceFile } from "typescript/unstable/ast";
 import { API, type Project, type Symbol } from "typescript/unstable/sync";
 
 import { checkSymbolImportability } from "../core/checkSymbolImportability.js";
@@ -157,19 +147,12 @@ export default defineRule({
           return;
         }
 
-        const tsNode = findTSNode<ImportSpecifier>(sourceFile, node, SyntaxKind.ImportSpecifier);
-        if (!tsNode) {
-          return;
-        }
+        const importDeclaration = node.parent as ESTree.ImportDeclaration;
+        const moduleSpecifier = importDeclaration.source.value;
 
-        const moduleSpecifier = (tsNode.parent.parent.parent as ImportDeclaration).moduleSpecifier;
-        if (!isStringLiteral(moduleSpecifier)) {
-          return;
-        }
-
-        const symbol = project.checker.getSymbolAtLocation(tsNode.name);
+        const symbol = project.checker.getSymbolAtPosition(context.filename, node.local.start);
         if (symbol) {
-          checkSymbol(context, packageOptions, project, node, tsNode, moduleSpecifier.text, symbol);
+          checkSymbol(context, packageOptions, project, node, moduleSpecifier, symbol);
         }
       },
       ImportDefaultSpecifier(node) {
@@ -177,19 +160,12 @@ export default defineRule({
           return;
         }
 
-        const tsNode = findTSNode<ImportClause>(sourceFile, node, SyntaxKind.ImportClause);
-        if (!tsNode?.name) {
-          return;
-        }
+        const importDeclaration = node.parent as ESTree.ImportDeclaration;
+        const moduleSpecifier = importDeclaration.source.value;
 
-        const moduleSpecifier = (tsNode.parent as ImportDeclaration).moduleSpecifier;
-        if (!isStringLiteral(moduleSpecifier)) {
-          return;
-        }
-
-        const symbol = project.checker.getSymbolAtLocation(tsNode.name);
+        const symbol = project.checker.getSymbolAtPosition(context.filename, node.start);
         if (symbol) {
-          checkSymbol(context, packageOptions, project, node, tsNode, moduleSpecifier.text, symbol);
+          checkSymbol(context, packageOptions, project, node, moduleSpecifier, symbol);
         }
       },
       ExportSpecifier(node) {
@@ -197,60 +173,20 @@ export default defineRule({
           return;
         }
 
-        const tsNode = findTSNode<ExportSpecifier>(sourceFile, node, SyntaxKind.ExportSpecifier);
-        if (!tsNode) {
+        const exportDeclaration = node.parent as ESTree.ExportNamedDeclaration;
+        const moduleSpecifier = exportDeclaration.source?.value;
+        if (!moduleSpecifier) {
           return;
         }
 
-        const moduleSpecifier = (tsNode.parent.parent as ExportDeclaration).moduleSpecifier;
-        if (!moduleSpecifier || !isStringLiteral(moduleSpecifier)) {
-          return;
-        }
-
-        const symbol = project.checker.getSymbolAtLocation(tsNode.name);
+        const symbol = project.checker.getSymbolAtPosition(context.filename, node.local.start);
         if (symbol) {
-          checkSymbol(
-            context,
-            packageOptions,
-            project,
-            node,
-            tsNode,
-            moduleSpecifier.text,
-            symbol,
-            true,
-          );
+          checkSymbol(context, packageOptions, project, node, moduleSpecifier, symbol, true);
         }
       },
     };
   },
 });
-
-function findTSNode<T extends Node>(
-  sourceFile: SourceFile,
-  node: OxlintNode,
-  kind: T["kind"],
-): T | undefined {
-  const { start, end } = node;
-
-  function find(haystack: Node): Node | undefined {
-    if (
-      haystack.kind === kind &&
-      haystack.getStart(sourceFile) === start &&
-      haystack.getEnd() === end
-    ) {
-      return haystack;
-    }
-
-    return haystack.forEachChild((child) => {
-      const found = find(child);
-      if (found) {
-        return found;
-      }
-    });
-  }
-
-  return find(sourceFile) as T | undefined;
-}
 
 function jsDocRuleDefaultOptions(options: Partial<JSDocRuleOptions> | undefined): JSDocRuleOptions {
   const {
@@ -277,7 +213,6 @@ function checkSymbol(
   packageOptions: PackageOptions,
   project: Project,
   originalNode: OxlintNode,
-  tsNode: Node,
   moduleSpecifier: string,
   symbol: Symbol,
   reexport = false,
@@ -291,7 +226,7 @@ function checkSymbol(
   const checkResult = checkSymbolImportability(
     packageOptions,
     project,
-    tsNode.getSourceFile().fileName,
+    context.filename,
     moduleSpecifier,
     exsy,
   );
