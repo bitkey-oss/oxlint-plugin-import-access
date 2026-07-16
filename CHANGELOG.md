@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0](https://github.com/siketyan/oxlint-plugin-import-access/compare/v0.0.2...v1.0.0) (2026-07-16)
+
+
+### Miscellaneous Chores
+
+* initial release ([455e39d](https://github.com/siketyan/oxlint-plugin-import-access/commit/455e39db84304a9785b9ce51e9ec03aae316d323))
+
 ## [0.0.2](https://github.com/siketyan/oxlint-plugin-import-access/compare/v0.0.1...v0.0.2) (2026-07-16)
 
 
