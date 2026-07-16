@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.2](https://github.com/siketyan/oxlint-plugin-import-access/compare/v0.0.1...v0.0.2) (2026-07-16)
+
+
+### Tests
+
+* suppress stderr output ([5bf5f10](https://github.com/siketyan/oxlint-plugin-import-access/commit/5bf5f103290ddd399aac98007431e953f9581f85))
+
+
+### Continuous Integration
+
+* setup provenance ([7e5e51b](https://github.com/siketyan/oxlint-plugin-import-access/commit/7e5e51b22339bbbdabba5704cf05f13504626d37))
+
 ## 0.0.1 (2026-07-16)
 
 

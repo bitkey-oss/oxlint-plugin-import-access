@@ -1,6 +1,6 @@
 {
   "name": "oxlint-plugin-import-access",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Port of eslint-plugin-import-access for Oxlint powered by TypeScript 7",
   "homepage": "https://github.com/siketyan/oxlint-plugin-import-access#readme",
   "bugs": {
