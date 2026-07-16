@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, expect, it } from "vitest";
 
 import { getOxlintTester } from "./fixtures/oxlint";
 
