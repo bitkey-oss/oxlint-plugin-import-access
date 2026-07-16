@@ -1,7 +1,21 @@
 {
   "name": "oxlint-plugin-import-access",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "Port of eslint-plugin-import-access for Oxlint powered by TypeScript 7",
+  "homepage": "https://github.com/siketyan/oxlint-plugin-import-access#readme",
+  "bugs": {
+    "url": "https://github.com/siketyan/oxlint-plugin-import-access/issues"
+  },
+  "license": "MIT",
+  "author": "Naoki Ikeguchi <me@s6n.jp>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/siketyan/oxlint-plugin-import-access.git"
+  },
+  "files": [
+    "dist",
+    "!dist/__tests__"
+  ],
   "type": "module",
   "main": "dist/index.js",
   "exports": {
