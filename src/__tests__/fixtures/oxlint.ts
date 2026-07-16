@@ -3,6 +3,8 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
+import {expect} from "vitest";
+
 export async function getOxlintTester() {
   const oxlintBinPath = path.resolve(import.meta.dirname, "../../../node_modules/.bin/oxlint");
   const projectRoot = path.resolve(import.meta.dirname, "project");
@@ -37,7 +39,9 @@ export async function getOxlintTester() {
         { cwd: projectRoot },
       );
 
-      console.error(result.stderr.toString());
+      if (result.stderr.length > 0) {
+        console.error(result.stderr.toString());
+      }
 
       const diagnostics: SarifDiagnostic[] = JSON.parse(result.stdout.toString()).runs[0].results;
 
