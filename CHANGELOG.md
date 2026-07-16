@@ -1,0 +1,20 @@
+# Changelog
+
+## 0.0.1 (2026-07-16)
+
+
+### Features
+
+* implement import-access/jsdoc rule ([b4556f2](https://github.com/siketyan/oxlint-plugin-import-access/commit/b4556f2d5a380ca7af8fd74c9be21f71b06360bf))
+* initialise project ([929716f](https://github.com/siketyan/oxlint-plugin-import-access/commit/929716fada3fda9e9c7af1c0cf30e32495473865))
+* reimplement with the official API ([76d9a0b](https://github.com/siketyan/oxlint-plugin-import-access/commit/76d9a0b451caf49591cae505b542fc42f566c146))
+
+
+### Performance Improvements
+
+* use createOnce() API for faster linting ([55f6d36](https://github.com/siketyan/oxlint-plugin-import-access/commit/55f6d363cbfbb8cd6cb90809ed4e0b4fa64990c6))
+
+
+### Miscellaneous Chores
+
+* ignore CHANGELOG.md ([0079b95](https://github.com/siketyan/oxlint-plugin-import-access/commit/0079b955f92a69c23e88b31f952543d94c41080c))
