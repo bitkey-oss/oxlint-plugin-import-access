@@ -8,6 +8,7 @@ import { checkSymbolImportability } from "../core/checkSymbolImportability.js";
 import createTSProjectMap from "../utils/createTSProjectMap.js";
 import type { PackageOptions } from "../utils/isInPackage.js";
 import { listTSConfigFiles } from "../utils/listTSConfigFiles.js";
+import { measure } from "../utils/timings.js";
 
 export type JSDocRuleOptions = {
   /**
@@ -133,7 +134,11 @@ export default defineRule({
           ? ruleOptions.projects.map((p) => path.resolve(process.cwd(), p))
           : listTSConfigFiles(process.cwd());
 
-        projectMap = createTSProjectMap(api.updateSnapshot({ openProjects: tsconfigs }), tsconfigs);
+        const snapshot = measure("updateSnapshot", () =>
+          api.updateSnapshot({ openProjects: tsconfigs }),
+        );
+
+        projectMap = createTSProjectMap(snapshot, tsconfigs);
       }
 
       return projectMap;
@@ -149,12 +154,20 @@ export default defineRule({
         packageOptions = undefined;
 
         const projectMap = getProjectMap();
-        if (!(project = projectMap.getProjectForFile(context.filename))) {
+        if (
+          !(project = measure("getProjectForFile", () =>
+            projectMap.getProjectForFile(context.filename),
+          ))
+        ) {
           return;
         }
 
         // Cache sourceFile once per file to avoid repeated getSourceFile calls in handlers.
-        if (!(sourceFile = project.program.getSourceFile(context.filename))) {
+        if (
+          !(sourceFile = measure("getSourceFile", () =>
+            project!.program.getSourceFile(context.filename),
+          ))
+        ) {
           project = undefined;
           return;
         }
@@ -172,7 +185,9 @@ export default defineRule({
         const importDeclaration = node.parent as ESTree.ImportDeclaration;
         const moduleSpecifier = importDeclaration.source.value;
 
-        const symbol = project.checker.getSymbolAtPosition(context.filename, node.local.start);
+        const symbol = measure("getSymbolAtPosition", () =>
+          project!.checker.getSymbolAtPosition(context.filename, node.local.start),
+        );
         if (symbol) {
           checkSymbol(context, packageOptions, project, node, moduleSpecifier, symbol);
         }
@@ -185,7 +200,9 @@ export default defineRule({
         const importDeclaration = node.parent as ESTree.ImportDeclaration;
         const moduleSpecifier = importDeclaration.source.value;
 
-        const symbol = project.checker.getSymbolAtPosition(context.filename, node.start);
+        const symbol = measure("getSymbolAtPosition", () =>
+          project!.checker.getSymbolAtPosition(context.filename, node.start),
+        );
         if (symbol) {
           checkSymbol(context, packageOptions, project, node, moduleSpecifier, symbol);
         }
@@ -201,7 +218,9 @@ export default defineRule({
           return;
         }
 
-        const symbol = project.checker.getSymbolAtPosition(context.filename, node.local.start);
+        const symbol = measure("getSymbolAtPosition", () =>
+          project!.checker.getSymbolAtPosition(context.filename, node.local.start),
+        );
         if (symbol) {
           checkSymbol(context, packageOptions, project, node, moduleSpecifier, symbol, true);
         }
@@ -240,7 +259,9 @@ function checkSymbol(
   reexport = false,
 ): void {
   const checker = project.checker;
-  const exsy = checker.getImmediateAliasedSymbol(symbol);
+  const exsy = measure("getImmediateAliasedSymbol", () =>
+    checker.getImmediateAliasedSymbol(symbol),
+  );
   if (!exsy) {
     return;
   }

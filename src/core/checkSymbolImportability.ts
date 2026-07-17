@@ -9,7 +9,8 @@ import { findExportedDeclaration } from "../utils/findExportableDeclaration.js";
 import { getAccessOfJsDocs } from "../utils/getAccessOfJsDocs.js";
 import { Tag, getJSDocTags } from "../utils/getJSDocTags.js";
 import { PackageOptions, isInPackage } from "../utils/isInPackage.js";
-import { lookupPackageJson } from "./lookupPackageJson.js";
+import { measure } from "../utils/timings.js";
+import { lookupPackageJsonCached } from "./lookupPackageJson.js";
 
 /**
  * Result of checking a symbol.
@@ -26,7 +27,7 @@ export function checkSymbolImportability(
 ): CheckSymbolResult {
   const program = project.program;
 
-  const rawDecl = exportedSymbol.declarations?.[0]?.resolve();
+  const rawDecl = measure("resolveSymbol", () => exportedSymbol.declarations?.[0]?.resolve());
   if (!rawDecl) {
     return;
   }
@@ -37,7 +38,8 @@ export function checkSymbolImportability(
   }
 
   // Get the actual file name of the exported declaration
-  const exporterFilename = decl.getSourceFile().fileName;
+  const sourceFile = decl.getSourceFile();
+  const exporterFilename = sourceFile.fileName;
 
   // Check if moduleSpecifier or exporter file path matches any of the excludeSourcePatterns
   if (packageOptions.excludeSourcePatterns?.length) {
@@ -56,7 +58,7 @@ export function checkSymbolImportability(
   }
 
   // If declaration is from external module, treat as importable
-  if (program.isSourceFileFromExternalLibrary(decl.getSourceFile())) {
+  if (program.isSourceFileFromExternalLibrary(sourceFile)) {
     return;
   }
 
@@ -65,7 +67,9 @@ export function checkSymbolImportability(
     possibleSubpathImportFromPackage.test(moduleSpecifier)
   ) {
     // Check whether this import is the result of a self-reference.
-    const lookupResult = lookupPackageJson(importerFilename);
+    const lookupResult = measure("lookupPackageJson", () =>
+      lookupPackageJsonCached(importerFilename),
+    );
     if (lookupResult !== null) {
       if (checkIfImportIsSelfReference(moduleSpecifier, lookupResult.packageJson.name)) {
         // This is a self-reference, so treat as external.
@@ -81,7 +85,7 @@ export function checkSymbolImportability(
     // Prefer JSDoc from the declaration node (handles re-export annotations correctly).
     // Fall back to symbol's JSDoc tags from the checker for other cases.
     getJSDocTags(decl),
-    exportedSymbol.getJsDocTags(checker).map((tag) => ({
+    measure("getJsDocTags", () => exportedSymbol.getJsDocTags(checker)).map((tag) => ({
       name: tag.name,
       text: tag.text || "",
     })),
@@ -93,11 +97,7 @@ export function checkSymbolImportability(
       case "private":
         return "private";
       case "package": {
-        const inPackage = isInPackage(
-          importerFilename,
-          decl.getSourceFile().fileName,
-          packageOptions,
-        );
+        const inPackage = isInPackage(importerFilename, sourceFile.fileName, packageOptions);
         return inPackage ? undefined : "package";
       }
     }
@@ -117,7 +117,7 @@ export function checkSymbolImportability(
   }
 
   // for package-exports, check relation of this and that files
-  const inPackage = isInPackage(importerFilename, decl.getSourceFile().fileName, packageOptions);
+  const inPackage = isInPackage(importerFilename, sourceFile.fileName, packageOptions);
 
   return inPackage ? undefined : "package";
 }

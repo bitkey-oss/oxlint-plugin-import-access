@@ -60,9 +60,9 @@ export default defineConfig({
 
 Tested this plugin in a large project with ~7,300 files and ~1,000,000 LOC, on MacBook Pro with M3 Pro chip.
 
-| ESLint + uhyo/eslint-plugin-import-access | Oxlint + oxlint-plugin-import-access | Δ       |
-| ----------------------------------------- | ------------------------------------ | ------- |
-| 35.69 sec                                 | 7.87 sec                             | -77.94% |
+| ESLint + uhyo/eslint-plugin-import-access | Oxlint + oxlint-plugin-import-access | Δ                   |
+| ----------------------------------------- | ------------------------------------ | ------------------- |
+| 35.69 sec                                 | **5.65 sec**                         | **6.31x** (-84.16%) |
 
 ## Limitation
 

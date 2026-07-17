@@ -1,7 +1,13 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-export function lookupPackageJson(file: string) {
+interface PackageJsonResult {
+  packageJson: any;
+  packageJsonPath: string;
+  dir: string;
+}
+
+export function lookupPackageJson(file: string): PackageJsonResult | null {
   const absolutePath = path.resolve(file);
   const { root } = path.parse(absolutePath);
   let dir = path.dirname(absolutePath);
@@ -22,4 +28,24 @@ export function lookupPackageJson(file: string) {
     dir = path.dirname(dir);
   }
   return null;
+}
+
+const packageJsonCache = new Map<string, PackageJsonResult>();
+
+export function lookupPackageJsonCached(file: string): PackageJsonResult | null {
+  const cached = packageJsonCache.get(path.dirname(file));
+  if (cached) {
+    return cached;
+  }
+
+  const result = lookupPackageJson(file);
+  if (result) {
+    let dir = path.dirname(file);
+    while (dir !== result.dir) {
+      packageJsonCache.set(dir, result);
+      dir = path.dirname(dir);
+    }
+  }
+
+  return result;
 }
