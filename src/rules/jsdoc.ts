@@ -56,6 +56,8 @@ export type JSDocRuleOptions = {
   projects?: string[];
 };
 
+const isLSP = process.argv.includes("--lsp");
+
 const api = new API();
 
 export default defineRule({
@@ -141,6 +143,17 @@ export default defineRule({
         projectMap = createTSProjectMap(snapshot, tsconfigs);
       }
 
+      // Update the snapshot here so the TypeScript compiler will invalidate the updated file.
+      if (isLSP) {
+        const snapshot = api.updateSnapshot({
+          fileChanges: {
+            changed: [context.filename],
+          },
+        });
+
+        projectMap = createTSProjectMap(snapshot, projectMap.tsconfigs);
+      }
+
       return projectMap;
     }
 
@@ -185,9 +198,7 @@ export default defineRule({
         const importDeclaration = node.parent as ESTree.ImportDeclaration;
         const moduleSpecifier = importDeclaration.source.value;
 
-        const symbol = measure("getSymbolAtPosition", () =>
-          project!.checker.getSymbolAtPosition(context.filename, node.local.start),
-        );
+        const symbol = getSymbolFromNode(context, project, node.local);
         if (symbol) {
           checkSymbol(context, packageOptions, project, node, moduleSpecifier, symbol);
         }
@@ -200,9 +211,7 @@ export default defineRule({
         const importDeclaration = node.parent as ESTree.ImportDeclaration;
         const moduleSpecifier = importDeclaration.source.value;
 
-        const symbol = measure("getSymbolAtPosition", () =>
-          project!.checker.getSymbolAtPosition(context.filename, node.start),
-        );
+        const symbol = getSymbolFromNode(context, project, node);
         if (symbol) {
           checkSymbol(context, packageOptions, project, node, moduleSpecifier, symbol);
         }
@@ -218,9 +227,7 @@ export default defineRule({
           return;
         }
 
-        const symbol = measure("getSymbolAtPosition", () =>
-          project!.checker.getSymbolAtPosition(context.filename, node.local.start),
-        );
+        const symbol = getSymbolFromNode(context, project, node.local);
         if (symbol) {
           checkSymbol(context, packageOptions, project, node, moduleSpecifier, symbol, true);
         }
@@ -249,6 +256,12 @@ function jsDocRuleDefaultOptions(options: Partial<JSDocRuleOptions> | undefined)
   };
 }
 
+function getSymbolFromNode(context: Context, project: Project, node: OxlintNode) {
+  return measure("getSymbolAtPosition", () =>
+    project!.checker.getSymbolAtPosition(context.filename, node.start),
+  );
+}
+
 function checkSymbol(
   context: Context,
   packageOptions: PackageOptions,
@@ -258,10 +271,21 @@ function checkSymbol(
   symbol: Symbol,
   reexport = false,
 ): void {
-  const checker = project.checker;
-  const exsy = measure("getImmediateAliasedSymbol", () =>
-    checker.getImmediateAliasedSymbol(symbol),
-  );
+  let exsy: Symbol | undefined;
+  try {
+    exsy = measure("getImmediateAliasedSymbol", () =>
+      project.checker.getImmediateAliasedSymbol(symbol),
+    );
+  } catch (e) {
+    if (isLSP) {
+      // The TypeScript compiler can't read the file updated but not saved yet in LSP.
+      // This RPC call will panic in that case currently, so ignoring the error here.
+      // Diagnostics will be updated when the user saves the file next time.
+      return;
+    }
+
+    throw e;
+  }
   if (!exsy) {
     return;
   }

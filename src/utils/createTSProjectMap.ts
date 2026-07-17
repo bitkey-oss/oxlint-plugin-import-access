@@ -3,6 +3,7 @@ import path from "node:path";
 import { Project, Snapshot } from "typescript/unstable/sync";
 
 interface TSProjectMap {
+  tsconfigs: string[];
   getProjectForFile(filename: string): Project | undefined;
 }
 
@@ -15,6 +16,7 @@ export default function createTSProjectMap(snapshot: Snapshot, tsconfigs: string
   const projectCache = new Map<string, Project | null>();
 
   return {
+    tsconfigs,
     getProjectForFile(filename: string): Project | undefined {
       const matchingDir = tsConfigDirs.find((dir) => filename.startsWith(dir + "/"));
       if (!matchingDir) {
