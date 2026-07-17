@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/siketyan/oxlint-plugin-import-access/compare/v1.1.0...v1.1.1) (2026-07-17)
+
+
+### Performance Improvements
+
+* cache package.json lookups ([ab74479](https://github.com/siketyan/oxlint-plugin-import-access/commit/ab74479a4bc184f8e00cdac1b9732f43b54b99bf))
+
 ## [1.1.0](https://github.com/siketyan/oxlint-plugin-import-access/compare/v1.0.0...v1.1.0) (2026-07-16)
 
 
